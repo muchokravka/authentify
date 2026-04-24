@@ -12,6 +12,7 @@ It does **not** use time-of-day, so the same date + password always produce iden
 ## Features
 
 - Deterministic code generation (date + password only)
+- Hardened seed derivation using PBKDF2-HMAC-SHA256 (salted + iterative)
 - Generates 3 separate codes per day:
   - User #1 verification code
   - User #2 verification code
@@ -21,20 +22,20 @@ It does **not** use time-of-day, so the same date + password always produce iden
 
 ## File Structure
 
-- `daily_identity_codes.cpp` — main CLI application source
+- `authentify.cpp` — main CLI application source
 
 ## Build
 
 From the project root:
 
 ```bash
-g++ -std=c++17 -O2 -Wall -Wextra -pedantic daily_identity_codes.cpp -o daily_identity_codes
+g++ -std=c++17 -O2 -Wall -Wextra -pedantic authentify.cpp -o authentify
 ```
 
 ## Run
 
 ```bash
-./daily_identity_codes
+./authentify
 ```
 
 You will be prompted for:
@@ -65,24 +66,30 @@ Enter shared secret password: MySharedPass123!
 --------------- GENERATED CODES ---------------
 Date: 23-04-2026
 
-User #1 Verification Code : 2XL9-NQQJ-BEDR-22Y9
-User #2 Verification Code : YNDG-EVB8-O2CP-3E0G
-File Encryption Code      : 3T0D-FZNP-CSSU-DLP5
+User #1 Verification Code : [deterministic value]
+User #2 Verification Code : [deterministic value]
+File Encryption Code      : [deterministic value]
 -----------------------------------------------
 
 Copy-all line (easy clipboard use):
-23-04-2026|2XL9-NQQJ-BEDR-22Y9|YNDG-EVB8-O2CP-3E0G|3T0D-FZNP-CSSU-DLP5
+23-04-2026|[USER1_CODE]|[USER2_CODE]|[FILE_CODE]
 ```
 
 ## How It Works (High Level)
 
-For each code role (`USER1`, `USER2`, `FILE_ENCRYPT`), the app combines role + date + password into a source string, hashes it deterministically, then formats the result into grouped alphanumeric code blocks.
+For each code role (`USER1`, `USER2`, `FILE_ENCRYPT`), the app derives a role-specific seed using **PBKDF2-HMAC-SHA256** with a role/date salt and a high iteration count, then formats the result into grouped alphanumeric code blocks.
 
 This guarantees:
 
 - Same date + same password => same 3 codes
 - Different date or password => different codes
 - Each role gets its own unique code for the same day
+
+### Security Notes
+
+- This is significantly stronger than a single fast hash and raises the cost of offline guessing/rainbow-style precomputation.
+- Security still depends heavily on a strong shared password (long and random).
+- For even stronger password-hardening against GPU attacks, migrating to Argon2id would be the next step.
 
 ## Notes
 
