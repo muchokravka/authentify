@@ -12,7 +12,7 @@ It does **not** use time-of-day, so the same date + password always produce iden
 ## Features
 
 - Deterministic code generation (date + password only)
-- Hardened seed derivation using PBKDF2-HMAC-SHA256 (salted + iterative)
+- Hardened seed derivation using PBKDF2-HMAC-SHA256 (salted + iterative) plus a memory-hard mixing pass
 - Generates 3 separate codes per day:
   - User #1 verification code
   - User #2 verification code
@@ -77,7 +77,7 @@ Copy-all line (easy clipboard use):
 
 ## How It Works (High Level)
 
-For each code role (`USER1`, `USER2`, `FILE_ENCRYPT`), the app derives a role-specific seed using **PBKDF2-HMAC-SHA256** with a role/date salt and a high iteration count, then formats the result into grouped alphanumeric code blocks.
+For each code role (`USER1`, `USER2`, `FILE_ENCRYPT`), the app derives a role-specific seed using **PBKDF2-HMAC-SHA256** with a role/date salt and a high iteration count, then runs a deterministic memory-hard mixing pass before formatting the result into grouped alphanumeric code blocks.
 
 This guarantees:
 

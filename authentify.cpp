@@ -187,6 +187,7 @@ static std::array<std::uint8_t, 32> pbkdf2HmacSha256(const std::string& password
 
 static std::uint64_t deriveSeed(const std::string& password, const Date& date, const std::string& role) {
     constexpr std::uint32_t iterations = 120000U;
+    constexpr std::size_t memoryBlocks = 1U << 14U;
     std::ostringstream salt;
     salt << "DailyIdentityCodeGenerator:v2|"
          << role << '|'
@@ -196,6 +197,24 @@ static std::uint64_t deriveSeed(const std::string& password, const Date& date, c
 
     const auto derived = pbkdf2HmacSha256(password, salt.str(), iterations);
 
+    std::vector<std::uint64_t> buffer(memoryBlocks, 0ULL);
+    std::uint64_t state = 0ULL;
+    for (int i = 0; i < 8; ++i) {
+        state = (state << 8ULL) | static_cast<std::uint64_t>(derived[static_cast<std::size_t>(i)]);
+    }
+    for (std::size_t i = 0; i < buffer.size(); ++i) {
+        state = splitMix64(state + static_cast<std::uint64_t>(i));
+        buffer[i] = state;
+    }
+
+    for (std::size_t round = 0; round < 3; ++round) {
+        for (std::size_t i = 0; i < buffer.size(); ++i) {
+            const std::size_t idx = static_cast<std::size_t>(buffer[i] & (memoryBlocks - 1U));
+            buffer[i] ^= splitMix64(buffer[idx] + state + static_cast<std::uint64_t>(round));
+            state ^= buffer[i];
+        }
+    }
+
     std::uint64_t seedA = 0ULL;
     std::uint64_t seedB = 0ULL;
     for (int i = 0; i < 8; ++i) {
@@ -204,7 +223,7 @@ static std::uint64_t deriveSeed(const std::string& password, const Date& date, c
     for (int i = 8; i < 16; ++i) {
         seedB = (seedB << 8ULL) | static_cast<std::uint64_t>(derived[static_cast<std::size_t>(i)]);
     }
-    return splitMix64(seedA ^ seedB ^ 0xA5A5A5A5A5A5A5A5ULL);
+    return splitMix64(seedA ^ seedB ^ state ^ 0xA5A5A5A5A5A5A5A5ULL);
 }
 
 static std::uint64_t splitMix64(std::uint64_t x) {
